@@ -1,0 +1,44 @@
+[gd_scene format=3 uid="uid://be5r5smed77cg"]
+
+[node name="Menu" type="Control" unique_id=163452264]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=379663968]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -250.0
+offset_top = -150.0
+offset_right = 250.0
+offset_bottom = 150.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="Label" type="Label" parent="VBoxContainer" unique_id=65151400]
+layout_mode = 2
+text = "Testing Environments"
+horizontal_alignment = 1
+
+[node name="Map" type="Button" parent="VBoxContainer" unique_id=1147550552]
+layout_mode = 2
+size_flags_vertical = 3
+text = "Map Test"
+
+[node name="Combat Encounter" type="Button" parent="VBoxContainer" unique_id=2015065314]
+layout_mode = 2
+size_flags_vertical = 3
+text = "Combat Encounter Test"
+
+[node name="NPC Encounter" type="Button" parent="VBoxContainer" unique_id=120680090]
+layout_mode = 2
+size_flags_vertical = 3
+text = "NPC Encounter Test	"

@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://ux151ao4oa8k"]
+
+[ext_resource type="Texture2D" uid="uid://dbjuqig46f5e3" path="res://assets/map/fragmented_map.png" id="1_ccbpi"]
+
+[node name="Map" type="Control" unique_id=1123148531]
+layout_mode = 3
+anchors_preset = 0
+
+[node name="TextureRect" type="TextureRect" parent="." unique_id=583974919]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -114.5
+offset_top = -256.0
+offset_right = 114.5
+offset_bottom = 256.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("1_ccbpi")
+stretch_mode = 4
