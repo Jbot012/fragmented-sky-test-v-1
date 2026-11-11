@@ -1,0 +1,439 @@
+[gd_scene load_steps=13 format=3 uid="uid://ce28ie1ptcnb5"]
+
+[ext_resource type="Script" uid="uid://ddx2qwdorltuu" path="res://src/scripts/combat_screen.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://6dsdcsw1tdsn" path="res://assets/Inventory_Bag.png" id="2_bag"]
+[ext_resource type="Texture2D" uid="uid://dkonmc5lph0u8" path="res://assets/Energy_icon.png" id="3_energy"]
+[ext_resource type="PackedScene" uid="uid://0p1ykphc5dka" path="res://assets/blender/sword_test_uv_uwrap.glb" id="4_sword_model"]
+[ext_resource type="PackedScene" uid="uid://dubdoyldsbr0q" path="res://assets/blender/lantern_final.glb" id="5_lantern_model"]
+
+[sub_resource type="Gradient" id="Gradient_dark"]
+offsets = PackedFloat32Array(0, 0.45, 0.78, 1)
+colors = PackedColorArray(0, 0, 0, 0, 0, 0, 0, 0.18, 0, 0, 0, 0.62, 0, 0, 0, 0.92)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_dark"]
+gradient = SubResource("Gradient_dark")
+width = 1152
+height = 648
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1.1, 0.5)
+
+[sub_resource type="Gradient" id="Gradient_glow"]
+offsets = PackedFloat32Array(0, 0.35, 1)
+colors = PackedColorArray(0.133, 0.773, 0.369, 0.16, 0.133, 0.773, 0.369, 0.07, 0.133, 0.773, 0.369, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_glow"]
+gradient = SubResource("Gradient_glow")
+width = 512
+height = 512
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="Environment" id="Environment_stage"]
+background_mode = 0
+ambient_light_source = 2
+ambient_light_color = Color(0.5, 0.55, 0.65, 1)
+ambient_light_energy = 0.6
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_bag_panel"]
+content_margin_left = 12.0
+content_margin_top = 12.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+bg_color = Color(0.0745098, 0.0745098, 0.0862745, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.14902, 0.14902, 0.168627, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_bag_slot"]
+bg_color = Color(0.0862745, 0.0862745, 0.101961, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.14902, 0.14902, 0.168627, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="Combat" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.043137, 0.043137, 0.05098, 1)
+
+[node name="Slime" type="AnimatedSprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(576, 330)
+scale = Vector2(0.54, 0.54)
+modulate = Color(0.55, 0.6, 0.68, 1)
+
+[node name="Vignette" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_dark")
+
+[node name="ClawMarks" type="AnimatedSprite2D" parent="."]
+unique_name_in_owner = true
+visible = false
+position = Vector2(576, 576)
+
+[node name="Sword" type="SubViewportContainer" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 96.0
+offset_top = -256.0
+offset_right = 376.0
+offset_bottom = 24.0
+grow_vertical = 0
+mouse_filter = 0
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="Sword"]
+transparent_bg = true
+own_world_3d = true
+size = Vector2i(280, 280)
+render_target_update_mode = 4
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Sword/SubViewport"]
+environment = SubResource("Environment_stage")
+
+[node name="Camera3D" type="Camera3D" parent="Sword/SubViewport"]
+position = Vector3(0, 0.2, 4)
+current = true
+projection = 1
+size = 1.8
+near = 0.05
+far = 20.0
+
+[node name="KeyLight" type="DirectionalLight3D" parent="Sword/SubViewport"]
+rotation = Vector3(-0.610865, -0.523599, 0)
+light_energy = 1.1
+shadow_enabled = false
+
+[node name="SwordPivot" type="Node3D" parent="Sword/SubViewport"]
+position = Vector3(-0.505, -0.976, 0)
+rotation = Vector3(0, 0.069813, 0)
+
+[node name="SwordFlip" type="Node3D" parent="Sword/SubViewport/SwordPivot"]
+position = Vector3(0.831, 2.283, 0)
+rotation = Vector3(0, 0, 2.792527)
+
+[node name="SwordRoll" type="Node3D" parent="Sword/SubViewport/SwordPivot/SwordFlip"]
+rotation = Vector3(0, -0.872665, 0)
+
+[node name="SwordModel" parent="Sword/SubViewport/SwordPivot/SwordFlip/SwordRoll" instance=ExtResource("4_sword_model")]
+
+[node name="Bag" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -140.0
+offset_top = -140.0
+offset_right = -32.0
+offset_bottom = -32.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 0
+texture = ExtResource("2_bag")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Lantern" type="SubViewportContainer" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -380.0
+offset_top = -200.0
+offset_right = -180.0
+offset_bottom = 0.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 0
+stretch = true
+
+[node name="Glow" type="TextureRect" parent="Lantern"]
+show_behind_parent = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -230.0
+offset_top = -230.0
+offset_right = 230.0
+offset_bottom = 230.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_glow")
+
+[node name="SubViewport" type="SubViewport" parent="Lantern"]
+transparent_bg = true
+own_world_3d = true
+size = Vector2i(200, 200)
+render_target_update_mode = 4
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Lantern/SubViewport"]
+environment = SubResource("Environment_stage")
+
+[node name="Camera3D" type="Camera3D" parent="Lantern/SubViewport"]
+position = Vector3(0, 1.3, 4)
+current = true
+projection = 1
+size = 2.1
+near = 0.05
+far = 20.0
+
+[node name="KeyLight" type="DirectionalLight3D" parent="Lantern/SubViewport"]
+rotation = Vector3(-0.610865, -0.523599, 0)
+light_energy = 0.9
+shadow_enabled = false
+
+[node name="GlowLight" type="OmniLight3D" parent="Lantern/SubViewport"]
+position = Vector3(0, 1.1, 0.55)
+light_color = Color(0.133, 0.773, 0.369, 1)
+light_energy = 2.0
+shadow_enabled = false
+omni_range = 3.0
+
+[node name="LanternModel" parent="Lantern/SubViewport" instance=ExtResource("5_lantern_model")]
+rotation = Vector3(0, -0.872665, 0)
+
+[node name="Energy" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -220.0
+offset_top = 16.0
+offset_right = -24.0
+offset_bottom = 88.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="Flame" type="TextureRect" parent="Energy"]
+custom_minimum_size = Vector2(72, 72)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("3_energy")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="EnergyCount" type="Label" parent="Energy"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.957, 0.957, 0.961, 1)
+theme_override_font_sizes/font_size = 40
+text = "8"
+vertical_alignment = 1
+
+[node name="PhaseLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -220.0
+offset_top = 92.0
+offset_right = -24.0
+offset_bottom = 116.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.133333, 0.772549, 0.368627, 1)
+theme_override_font_sizes/font_size = 16
+text = "YOUR TURN"
+horizontal_alignment = 2
+
+[node name="BagPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -232.0
+offset_top = -312.0
+offset_right = -32.0
+offset_bottom = -152.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBox_bag_panel")
+
+[node name="VBox" type="VBoxContainer" parent="BagPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="BagPanel/VBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.957, 0.957, 0.961, 1)
+theme_override_font_sizes/font_size = 16
+text = "BAG"
+
+[node name="Grid" type="GridContainer" parent="BagPanel/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 2
+
+[node name="Slot1" type="PanelContainer" parent="BagPanel/VBox/Grid"]
+custom_minimum_size = Vector2(84, 44)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBox_bag_slot")
+
+[node name="Label" type="Label" parent="BagPanel/VBox/Grid/Slot1"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.443137, 0.443137, 0.482353, 1)
+theme_override_font_sizes/font_size = 12
+text = "EMPTY"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Slot2" type="PanelContainer" parent="BagPanel/VBox/Grid"]
+custom_minimum_size = Vector2(84, 44)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBox_bag_slot")
+
+[node name="Label" type="Label" parent="BagPanel/VBox/Grid/Slot2"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.443137, 0.443137, 0.482353, 1)
+theme_override_font_sizes/font_size = 12
+text = "EMPTY"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Slot3" type="PanelContainer" parent="BagPanel/VBox/Grid"]
+custom_minimum_size = Vector2(84, 44)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBox_bag_slot")
+
+[node name="Label" type="Label" parent="BagPanel/VBox/Grid/Slot3"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.443137, 0.443137, 0.482353, 1)
+theme_override_font_sizes/font_size = 12
+text = "EMPTY"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Slot4" type="PanelContainer" parent="BagPanel/VBox/Grid"]
+custom_minimum_size = Vector2(84, 44)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBox_bag_slot")
+
+[node name="Label" type="Label" parent="BagPanel/VBox/Grid/Slot4"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.443137, 0.443137, 0.482353, 1)
+theme_override_font_sizes/font_size = 12
+text = "EMPTY"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="EndOverlay" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+
+[node name="Dimmer" type="ColorRect" parent="EndOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.65)
+
+[node name="EndPanel" type="PanelContainer" parent="EndOverlay"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = -110.0
+offset_right = 180.0
+offset_bottom = 110.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBox_bag_panel")
+
+[node name="VBox" type="VBoxContainer" parent="EndOverlay/EndPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="EndTitle" type="Label" parent="EndOverlay/EndPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.937, 0.267, 0.267, 1)
+theme_override_font_sizes/font_size = 48
+text = "DEFEAT"
+horizontal_alignment = 1
+
+[node name="EndHint" type="Label" parent="EndOverlay/EndPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.631373, 0.631373, 0.690196, 1)
+theme_override_font_sizes/font_size = 16
+text = "Your energy ran out."
+horizontal_alignment = 1
+
+[node name="ReturnButton" type="Button" parent="EndOverlay/EndPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+text = "RETURN TO MENU"

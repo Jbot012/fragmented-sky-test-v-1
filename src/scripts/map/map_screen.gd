@@ -2,6 +2,7 @@ extends Control
 ## Builds the map view from the session's run and rebuilds it on demand.
 
 const NODE_SCENE := preload("res://src/scenes/map_node.tscn")
+const MENU_SCENE := "res://src/scenes/menu.tscn"
 
 @onready var _scroll: ScrollContainer = %ScrollContainer
 @onready var _connections: Control = %Connections
@@ -10,8 +11,28 @@ const NODE_SCENE := preload("res://src/scenes/map_node.tscn")
 
 
 func _ready() -> void:
+	HandCursor.install()
 	_regenerate_button.pressed.connect(_on_regenerate_pressed)
 	_build(MapSession.get_run())
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		HandCursor.set_grabbing(event.pressed)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		HandCursor.set_grabbing(false)
+
+
+func _exit_tree() -> void:
+	HandCursor.set_grabbing(false)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		get_tree().change_scene_to_file(MENU_SCENE)
 
 
 func _build(run: MapRun) -> void:
