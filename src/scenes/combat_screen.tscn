@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://ce28ie1ptcnb5"]
+[gd_scene format=3 uid="uid://ce28ie1ptcnb5"]
 
 [ext_resource type="Script" uid="uid://ddx2qwdorltuu" path="res://src/scripts/combat_screen.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://6dsdcsw1tdsn" path="res://assets/Inventory_Bag.png" id="2_bag"]
