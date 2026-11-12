@@ -320,30 +320,60 @@ func _update_hud() -> void:
 
 # --- animations ----------------------------------------------------------------------------
 
+## Where the whole sword winds up: above the slime, ready to chop down.
+func _sword_raise_position() -> Vector2:
+	return Vector2(_slime.position.x - _sword.size.x * 0.9,
+		_slime.position.y - _sword.size.y)
+
+
+## Where the whole sword ends its chop: below and right of the slime's centre.
+func _sword_slash_position() -> Vector2:
+	return Vector2(_slime.position.x - _sword.size.x * 0.1,
+		_slime.position.y + _sword.size.y * 0.45)
+
+
 func _play_sword_swing() -> void:
+	var base := _sword.position
 	var tween := create_tween()
-	tween.tween_property(_sword_pivot, "rotation:z", _sword_base_rotation.z + 0.18, 0.10) \
+	tween.tween_property(_sword, "position", _sword_raise_position(), 0.16) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(_sword_pivot, "rotation:z", _sword_base_rotation.z + 0.18, 0.16) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tween.parallel().tween_property(_sword_pivot, "position",
-		_sword_base_position + Vector3(-0.04, -0.03, 0.0), 0.10)
-	tween.tween_property(_sword_pivot, "rotation:z", _sword_base_rotation.z - 0.85, 0.16) \
+		_sword_base_position + Vector3(-0.04, 0.03, 0.0), 0.16)
+	tween.tween_property(_sword, "position", _sword_slash_position(), 0.18) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(_sword_pivot, "rotation:z", _sword_base_rotation.z - 0.85, 0.18) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tween.parallel().tween_property(_sword_pivot, "position",
-		_sword_base_position + Vector3(0.35, 0.18, 0.0), 0.16)
-	tween.tween_property(_sword_pivot, "rotation:z", _sword_base_rotation.z, 0.28) \
+		_sword_base_position + Vector3(0.35, -0.18, 0.0), 0.18)
+	tween.tween_property(_sword, "position", base, 0.28) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.parallel().tween_property(_sword_pivot, "rotation:z", _sword_base_rotation.z, 0.28) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tween.parallel().tween_property(_sword_pivot, "position", _sword_base_position, 0.28)
 	await tween.finished
 
 
+## Screen position that puts the lantern just right of and above the centre.
+func _lantern_center_position() -> Vector2:
+	return size * 0.5 + Vector2(96.0, -24.0) - _lantern.size * 0.5
+
+
 func _play_lantern_pull() -> void:
+	var base := _lantern.position
 	var tween := create_tween()
-	tween.tween_property(_lantern_model, "position",
+	tween.tween_property(_lantern, "position", _lantern_center_position(), 0.18) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(_lantern_model, "position",
 		_lantern_base_position + Vector3(0.0, 0.08, 0.55), 0.18) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.parallel().tween_property(_lantern_model, "scale", Vector3.ONE * 1.12, 0.18)
 	tween.parallel().tween_property(_glow_light, "light_energy", _glow_base_energy + 1.2, 0.18)
-	tween.tween_property(_lantern_model, "position", _lantern_base_position, 0.30) \
+	tween.tween_interval(0.20)
+	tween.tween_property(_lantern, "position", base, 0.30) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.parallel().tween_property(_lantern_model, "position", _lantern_base_position, 0.30) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tween.parallel().tween_property(_lantern_model, "scale", Vector3.ONE, 0.30)
 	tween.parallel().tween_property(_glow_light, "light_energy", _glow_base_energy, 0.30)
