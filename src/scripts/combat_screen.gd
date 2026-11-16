@@ -23,7 +23,7 @@ const CLAW_FRAMES := 6
 const ACTION_FPS := 12.0
 const START_ENERGY := 8
 const LANTERN_GAIN := 3
-const LANTERN_DROP_RADIUS := 120.0
+const LANTERN_DROP_RADIUS := 180.0
 const LANTERN_GLOW_SECONDS := 0.35
 const LANTERN_RETURN_SECONDS := 0.28
 const LANTERN_HIGHLIGHT_TINT := Color(1.15, 1.15, 1.15, 1.0)
@@ -79,7 +79,6 @@ signal claw_marks_hidden
 @onready var _drop_ring: Panel = %DropRing
 @onready var _lantern_highlight: TextureRect = %LanternHighlight
 @onready var _sword_pivot: Node3D = $Sword/SubViewport/SwordPivot
-@onready var _lantern_model: Node3D = $Lantern/SubViewport/LanternModel
 @onready var _glow_light: OmniLight3D = $Lantern/SubViewport/GlowLight
 
 var energy := START_ENERGY
@@ -90,7 +89,6 @@ var lantern_used := false
 
 var _sword_base_position := Vector3.ZERO
 var _sword_base_rotation := Vector3.ZERO
-var _lantern_base_position := Vector3.ZERO
 var _glow_base_energy := 2.0
 var _lantern_dragging := false
 var _lantern_home := Vector2.ZERO
@@ -104,7 +102,6 @@ func _ready() -> void:
 	HandCursor.install()
 	_sword_base_position = _sword_pivot.position
 	_sword_base_rotation = _sword_pivot.rotation
-	_lantern_base_position = _lantern_model.position
 	_glow_base_energy = _glow_light.light_energy
 	_sword.gui_input.connect(_on_sword_gui_input)
 	_lantern.gui_input.connect(_on_lantern_gui_input)
@@ -347,19 +344,12 @@ func _activate_lantern() -> void:
 	var tween := create_tween()
 	tween.tween_property(_lantern, "position", _lantern_center_position(), 0.15) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(_lantern_model, "position",
-		_lantern_base_position + Vector3(0.0, 0.08, 0.55), 0.15) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(_lantern_model, "scale", Vector3.ONE * 1.12, 0.15)
 	tween.parallel().tween_property(_glow_light, "light_energy", _glow_base_energy + 3.0, 0.15)
 	tween.parallel().tween_property(_lantern_highlight, "modulate:a", 1.0, 0.15)
 	tween.parallel().tween_property(_lantern, "modulate", LANTERN_HIGHLIGHT_TINT, 0.15)
 	tween.tween_interval(LANTERN_GLOW_SECONDS)
 	tween.tween_property(_lantern, "position", _lantern_home, LANTERN_RETURN_SECONDS) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tween.parallel().tween_property(_lantern_model, "position", _lantern_base_position,
-		LANTERN_RETURN_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tween.parallel().tween_property(_lantern_model, "scale", Vector3.ONE, LANTERN_RETURN_SECONDS)
 	tween.parallel().tween_property(_glow_light, "light_energy", _glow_base_energy,
 		LANTERN_RETURN_SECONDS)
 	tween.parallel().tween_property(_lantern_highlight, "modulate:a", 0.0, LANTERN_RETURN_SECONDS)
