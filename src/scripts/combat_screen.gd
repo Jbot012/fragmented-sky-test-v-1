@@ -284,7 +284,7 @@ func _hide_claw_marks() -> void:
 
 
 ## Locks input and shows the shared end panel with the outcome's title, hint and colour.
-func _end_combat(outcome: int) -> void:
+func _end_combat(outcome: Phase) -> void:
 	phase = outcome
 	busy = true
 	_bag_panel.hide()
@@ -399,20 +399,20 @@ func _build_claw_frames() -> SpriteFrames:
 	return frames
 
 
-func _add_animation(frames: SpriteFrames, name: String, dir: String, count: int,
+func _add_animation(frames: SpriteFrames, _name: String, dir: String, count: int,
 		fps: float, loop: bool) -> void:
-	frames.add_animation(name)
-	frames.set_animation_speed(name, fps)
-	frames.set_animation_loop(name, loop)
+	frames.add_animation(_name)
+	frames.set_animation_speed(_name, fps)
+	frames.set_animation_loop(_name, loop)
 	for i in range(1, count + 1):
-		frames.add_frame(name, load(dir % i))
+		frames.add_frame(_name, load(dir % i))
 
 
 ## Recolours the black claw art so it reads against the dark scene.
 func _build_claw_material() -> ShaderMaterial:
 	var shader := Shader.new()
 	shader.code = CLAW_SHADER
-	var material := ShaderMaterial.new()
-	material.shader = shader
-	material.set_shader_parameter("tint", CLAW_TINT)
-	return material
+	var _material := ShaderMaterial.new()
+	_material.shader = shader
+	_material.set_shader_parameter("tint", CLAW_TINT)
+	return _material
