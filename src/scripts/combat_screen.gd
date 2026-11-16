@@ -3,12 +3,13 @@ extends Control
 ## First-person combat scene: the player's attack phase and the slime's retaliation.
 ##
 ## The slime idles in the dark while the 3D sword and lantern, the 2D bag and the energy
-## counter frame the view. The sword spends energy and ends the turn; the lantern is a
-## one-time energy boost; the bag opens an empty inventory panel. Every sword swing is
-## answered by the slime's hurt animation, then its attack and a full-screen claw overlay.
-## Five sword hits kill the slime and end the combat in victory. Energy is not refilled:
-## every non-lethal exchange costs 2 (the sword and the slime's claw), and reaching zero
-## always ends in defeat, even on the killing blow.
+## counter frame the view. The sword spends energy and ends the turn; the lantern is dragged
+## into a glowing drop zone for a one-time energy boost, then returns to the hotbar dimmed;
+## the bag opens an empty inventory panel. Every sword swing is answered by the slime's hurt
+## animation, then its attack and a full-screen claw overlay. Five sword hits kill the slime
+## and end the combat in victory. Energy is not refilled: every non-lethal exchange costs 2
+## (the sword and the slime's claw), and reaching zero always ends in defeat, even on the
+## killing blow.
 
 const IDLE_DIR := "res://assets/Enemies/Slime/Idle/Idle_Slime-%d.png"
 const IDLE_FRAMES := 12
@@ -22,6 +23,10 @@ const CLAW_FRAMES := 6
 const ACTION_FPS := 12.0
 const START_ENERGY := 8
 const LANTERN_GAIN := 3
+const LANTERN_DROP_RADIUS := 120.0
+const LANTERN_GLOW_SECONDS := 0.35
+const LANTERN_RETURN_SECONDS := 0.28
+const LANTERN_HIGHLIGHT_TINT := Color(1.15, 1.15, 1.15, 1.0)
 const SLIME_MAX_HP := 5
 const SLIME_ATTACK_DRAIN := 1
 const SLIME_TURN_DELAY := 0.2
@@ -69,6 +74,10 @@ signal claw_marks_hidden
 @onready var _sword: SubViewportContainer = $Sword
 @onready var _lantern: SubViewportContainer = $Lantern
 @onready var _bag: TextureRect = $Bag
+@onready var _drop_zone: Control = %DropZone
+@onready var _drop_fill: Panel = %DropFill
+@onready var _drop_ring: Panel = %DropRing
+@onready var _lantern_highlight: TextureRect = %LanternHighlight
 @onready var _sword_pivot: Node3D = $Sword/SubViewport/SwordPivot
 @onready var _lantern_model: Node3D = $Lantern/SubViewport/LanternModel
 @onready var _glow_light: OmniLight3D = $Lantern/SubViewport/GlowLight
@@ -83,6 +92,12 @@ var _sword_base_position := Vector3.ZERO
 var _sword_base_rotation := Vector3.ZERO
 var _lantern_base_position := Vector3.ZERO
 var _glow_base_energy := 2.0
+var _lantern_dragging := false
+var _lantern_home := Vector2.ZERO
+var _lantern_grab_offset := Vector2.ZERO
+var _drop_zone_hot := false
+var _drop_zone_tween: Tween
+var _lantern_highlight_tween: Tween
 
 
 func _ready() -> void:
@@ -123,11 +138,20 @@ func _layout_stage() -> void:
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		HandCursor.set_grabbing(event.pressed)
+	if not _lantern_dragging:
+		return
+	if event is InputEventMouseMotion:
+		_follow_mouse()
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT \
+			and not event.pressed:
+		_release_lantern()
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		HandCursor.set_grabbing(false)
+		if _lantern_dragging:
+			_cancel_lantern_drag()
 
 
 func _exit_tree() -> void:
@@ -136,6 +160,9 @@ func _exit_tree() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("ui_cancel"):
+		return
+	if _lantern_dragging:
+		_cancel_lantern_drag()
 		return
 	if _bag_panel.visible:
 		_bag_panel.hide()
@@ -147,12 +174,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _on_sword_gui_input(event: InputEvent) -> void:
 	if _is_left_click(event):
-		_try_action(Action.SWORD)
+		_try_sword_swing()
 
 
 func _on_lantern_gui_input(event: InputEvent) -> void:
 	if _is_left_click(event):
-		_try_action(Action.LANTERN)
+		_start_lantern_drag()
 
 
 func _on_bag_gui_input(event: InputEvent) -> void:
@@ -167,40 +194,31 @@ func _is_left_click(event: InputEvent) -> bool:
 	return mouse.button_index == MOUSE_BUTTON_LEFT and mouse.pressed
 
 
-## Spends energy on the sword or lantern. The bag is free and toggles its panel instead.
-func _try_action(action: Action) -> void:
+## Spends energy on the sword. The lantern is handled by its own drag-and-drop flow.
+func _try_sword_swing() -> void:
 	if phase != Phase.PLAYER or busy or energy <= 0:
-		return
-	if action == Action.LANTERN and lantern_used:
 		return
 	busy = true
 	_bag_panel.hide()
-	action_started.emit(action)
-	match action:
-		Action.SWORD:
-			energy -= 1
-			slime_hp -= 1
-			_update_hud()
-			await _play_sword_swing()
-			await _play_slime_hurt()
-			if slime_hp <= 0:
-				await _play_slime_death()
-				_end_combat(Phase.DEFEAT if energy <= 0 else Phase.VICTORY)
-				action_finished.emit(action)
-				return
-			if energy <= 0:
-				_end_combat(Phase.DEFEAT)
-				action_finished.emit(action)
-				return
-			await _start_slime_turn()
-		Action.LANTERN:
-			energy += LANTERN_GAIN - 1
-			_update_hud()
-			await _play_lantern_pull()
-			_spend_lantern()
+	action_started.emit(Action.SWORD)
+	energy -= 1
+	slime_hp -= 1
+	_update_hud()
+	await _play_sword_swing()
+	await _play_slime_hurt()
+	if slime_hp <= 0:
+		await _play_slime_death()
+		_end_combat(Phase.DEFEAT if energy <= 0 else Phase.VICTORY)
+		action_finished.emit(Action.SWORD)
+		return
+	if energy <= 0:
+		_end_combat(Phase.DEFEAT)
+		action_finished.emit(Action.SWORD)
+		return
+	await _start_slime_turn()
 	if phase == Phase.PLAYER:
 		busy = false
-	action_finished.emit(action)
+	action_finished.emit(Action.SWORD)
 
 
 func _toggle_bag() -> void:
@@ -214,6 +232,163 @@ func _spend_lantern() -> void:
 	lantern_used = true
 	_lantern.modulate = Color(1.0, 1.0, 1.0, 0.35)
 	_lantern.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+# --- lantern drag ---------------------------------------------------------------------------
+
+## Picks the lantern up, highlights it and reveals the drop zone near the middle of the screen.
+func _start_lantern_drag() -> void:
+	if phase != Phase.PLAYER or busy or energy <= 0 or lantern_used:
+		return
+	busy = true
+	_bag_panel.hide()
+	_lantern_dragging = true
+	_lantern_home = _lantern.position
+	_lantern_grab_offset = get_global_mouse_position() - _lantern.global_position
+	_lantern.z_index = 10
+	_highlight_lantern()
+	_show_drop_zone()
+	_update_drop_zone_feedback()
+
+
+## Keeps the grabbed point of the lantern under the mouse while the drag is active.
+func _follow_mouse() -> void:
+	var half := _lantern.size * 0.5
+	_lantern.global_position = (get_global_mouse_position() - _lantern_grab_offset) \
+		.clamp(-half, size - half)
+	_update_drop_zone_feedback()
+
+
+## Drops the lantern: activating it inside the circle, otherwise sending it home.
+func _release_lantern() -> void:
+	if not _lantern_dragging:
+		return
+	_lantern_dragging = false
+	var in_zone := _is_lantern_over_drop_zone()
+	_set_drop_zone_hot(false)
+	_hide_drop_zone()
+	if in_zone:
+		_activate_lantern()
+	else:
+		_return_lantern_home()
+
+
+func _cancel_lantern_drag() -> void:
+	if not _lantern_dragging:
+		return
+	_lantern_dragging = false
+	_set_drop_zone_hot(false)
+	_hide_drop_zone()
+	_return_lantern_home()
+
+
+func _drop_zone_center() -> Vector2:
+	return _drop_zone.position + _drop_zone.size * 0.5
+
+
+func _is_lantern_over_drop_zone() -> bool:
+	var lantern_center := _lantern.position + _lantern.size * 0.5
+	return lantern_center.distance_to(_drop_zone_center()) <= LANTERN_DROP_RADIUS
+
+
+func _highlight_lantern() -> void:
+	if _lantern_highlight_tween != null and _lantern_highlight_tween.is_valid():
+		_lantern_highlight_tween.kill()
+	_lantern_highlight_tween = create_tween()
+	_lantern_highlight_tween.set_parallel(true)
+	_lantern_highlight_tween.tween_property(_lantern, "modulate", LANTERN_HIGHLIGHT_TINT, 0.12) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_lantern_highlight_tween.tween_property(_lantern_highlight, "modulate:a", 1.0, 0.12) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+func _show_drop_zone() -> void:
+	_drop_zone_hot = false
+	_drop_fill.self_modulate = Color.WHITE
+	_drop_ring.self_modulate = Color.WHITE
+	if _drop_zone_tween != null and _drop_zone_tween.is_valid():
+		_drop_zone_tween.kill()
+	_drop_zone.show()
+	_drop_zone.modulate.a = 0.0
+	_drop_zone_tween = create_tween()
+	_drop_zone_tween.tween_property(_drop_zone, "modulate:a", 1.0, 0.15)
+
+
+func _hide_drop_zone() -> void:
+	if _drop_zone_tween != null and _drop_zone_tween.is_valid():
+		_drop_zone_tween.kill()
+	if not _drop_zone.visible:
+		return
+	_drop_zone_tween = create_tween()
+	_drop_zone_tween.tween_property(_drop_zone, "modulate:a", 0.0, 0.12)
+	_drop_zone_tween.tween_callback(_drop_zone.hide)
+
+
+func _update_drop_zone_feedback() -> void:
+	_set_drop_zone_hot(_is_lantern_over_drop_zone())
+
+
+func _set_drop_zone_hot(hot: bool) -> void:
+	if _drop_zone_hot == hot:
+		return
+	_drop_zone_hot = hot
+	var tint := Color(1.4, 1.4, 1.4, 1.0) if hot else Color.WHITE
+	_drop_fill.self_modulate = tint
+	_drop_ring.self_modulate = tint
+
+
+## Glows at the centre for a beat, then returns home faded and spent.
+func _activate_lantern() -> void:
+	action_started.emit(Action.LANTERN)
+	energy += LANTERN_GAIN - 1
+	_update_hud()
+	if _lantern_highlight_tween != null and _lantern_highlight_tween.is_valid():
+		_lantern_highlight_tween.kill()
+	var tween := create_tween()
+	tween.tween_property(_lantern, "position", _lantern_center_position(), 0.15) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(_lantern_model, "position",
+		_lantern_base_position + Vector3(0.0, 0.08, 0.55), 0.15) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(_lantern_model, "scale", Vector3.ONE * 1.12, 0.15)
+	tween.parallel().tween_property(_glow_light, "light_energy", _glow_base_energy + 3.0, 0.15)
+	tween.parallel().tween_property(_lantern_highlight, "modulate:a", 1.0, 0.15)
+	tween.parallel().tween_property(_lantern, "modulate", LANTERN_HIGHLIGHT_TINT, 0.15)
+	tween.tween_interval(LANTERN_GLOW_SECONDS)
+	tween.tween_property(_lantern, "position", _lantern_home, LANTERN_RETURN_SECONDS) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.parallel().tween_property(_lantern_model, "position", _lantern_base_position,
+		LANTERN_RETURN_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.parallel().tween_property(_lantern_model, "scale", Vector3.ONE, LANTERN_RETURN_SECONDS)
+	tween.parallel().tween_property(_glow_light, "light_energy", _glow_base_energy,
+		LANTERN_RETURN_SECONDS)
+	tween.parallel().tween_property(_lantern_highlight, "modulate:a", 0.0, LANTERN_RETURN_SECONDS)
+	tween.parallel().tween_property(_lantern, "modulate:a", 0.35, LANTERN_RETURN_SECONDS)
+	await tween.finished
+	_lantern.z_index = 0
+	_lantern_highlight.modulate.a = 0.0
+	_spend_lantern()
+	if phase == Phase.PLAYER:
+		busy = false
+	action_finished.emit(Action.LANTERN)
+
+
+## Tweens the lantern back to its hotbar slot, clearing the drag highlight.
+func _return_lantern_home() -> void:
+	if _lantern_highlight_tween != null and _lantern_highlight_tween.is_valid():
+		_lantern_highlight_tween.kill()
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(_lantern, "position", _lantern_home, LANTERN_RETURN_SECONDS) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(_lantern, "modulate", Color.WHITE, LANTERN_RETURN_SECONDS)
+	tween.tween_property(_lantern_highlight, "modulate:a", 0.0, LANTERN_RETURN_SECONDS * 0.6)
+	await tween.finished
+	_lantern.z_index = 0
+	_lantern.modulate = Color.WHITE
+	_lantern_highlight.modulate.a = 0.0
+	if phase == Phase.PLAYER:
+		busy = false
 
 
 func _on_return_to_menu_pressed() -> void:
@@ -355,29 +530,9 @@ func _play_sword_swing() -> void:
 	await tween.finished
 
 
-## Screen position that puts the lantern just right of and above the centre.
+## Top-left that centres the lantern inside the drop zone.
 func _lantern_center_position() -> Vector2:
-	return size * 0.5 + Vector2(96.0, -24.0) - _lantern.size * 0.5
-
-
-func _play_lantern_pull() -> void:
-	var base := _lantern.position
-	var tween := create_tween()
-	tween.tween_property(_lantern, "position", _lantern_center_position(), 0.18) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(_lantern_model, "position",
-		_lantern_base_position + Vector3(0.0, 0.08, 0.55), 0.18) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(_lantern_model, "scale", Vector3.ONE * 1.12, 0.18)
-	tween.parallel().tween_property(_glow_light, "light_energy", _glow_base_energy + 1.2, 0.18)
-	tween.tween_interval(0.20)
-	tween.tween_property(_lantern, "position", base, 0.30) \
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tween.parallel().tween_property(_lantern_model, "position", _lantern_base_position, 0.30) \
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tween.parallel().tween_property(_lantern_model, "scale", Vector3.ONE, 0.30)
-	tween.parallel().tween_property(_glow_light, "light_energy", _glow_base_energy, 0.30)
-	await tween.finished
+	return _drop_zone_center() - _lantern.size * 0.5
 
 
 # --- sprite frames -------------------------------------------------------------------------

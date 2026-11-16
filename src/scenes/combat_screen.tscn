@@ -30,6 +30,37 @@ fill = 1
 fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(1, 0.5)
 
+[sub_resource type="Gradient" id="Gradient_highlight"]
+offsets = PackedFloat32Array(0, 0.4, 1)
+colors = PackedColorArray(0.2, 1, 0.5, 0.45, 0.133, 0.773, 0.369, 0.2, 0.133, 0.773, 0.369, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_highlight"]
+gradient = SubResource("Gradient_highlight")
+width = 512
+height = 512
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_drop_fill"]
+bg_color = Color(0.133333, 0.772549, 0.368627, 0.08)
+corner_radius_top_left = 120
+corner_radius_top_right = 120
+corner_radius_bottom_right = 120
+corner_radius_bottom_left = 120
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_drop_ring"]
+draw_center = false
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.133333, 0.772549, 0.368627, 0.75)
+corner_radius_top_left = 120
+corner_radius_top_right = 120
+corner_radius_bottom_right = 120
+corner_radius_bottom_left = 120
+
 [sub_resource type="Environment" id="Environment_stage"]
 background_mode = 0
 ambient_light_source = 2
@@ -170,6 +201,46 @@ texture = ExtResource("2_bag")
 expand_mode = 1
 stretch_mode = 5
 
+[node name="DropZone" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -24.0
+offset_top = -144.0
+offset_right = 216.0
+offset_bottom = 96.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="DropFill" type="Panel" parent="DropZone"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_drop_fill")
+
+[node name="DropRing" type="Panel" parent="DropZone"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_drop_ring")
+
 [node name="Lantern" type="SubViewportContainer" parent="."]
 layout_mode = 1
 anchors_preset = 3
@@ -202,6 +273,25 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 texture = SubResource("GradientTexture2D_glow")
+
+[node name="LanternHighlight" type="TextureRect" parent="Lantern"]
+unique_name_in_owner = true
+show_behind_parent = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -260.0
+offset_right = 260.0
+offset_bottom = 260.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_highlight")
 
 [node name="SubViewport" type="SubViewport" parent="Lantern"]
 transparent_bg = true
