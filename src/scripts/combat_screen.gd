@@ -27,6 +27,10 @@ const LANTERN_DROP_RADIUS := 180.0
 const LANTERN_GLOW_SECONDS := 0.35
 const LANTERN_RETURN_SECONDS := 0.28
 const LANTERN_HIGHLIGHT_TINT := Color(1.15, 1.15, 1.15, 1.0)
+const IDLE_BOB_SECONDS := 2.4
+const IDLE_BOB_FADE_SECONDS := 0.25
+const SWORD_IDLE_BOB := 0.08
+const LANTERN_IDLE_BOB := 0.09
 const SLIME_MAX_HP := 5
 const SLIME_ATTACK_DRAIN := 1
 const SLIME_TURN_DELAY := 0.2
@@ -79,6 +83,8 @@ signal claw_marks_hidden
 @onready var _drop_ring: Panel = %DropRing
 @onready var _lantern_highlight: TextureRect = %LanternHighlight
 @onready var _sword_pivot: Node3D = $Sword/SubViewport/SwordPivot
+@onready var _sword_model: Node3D = $Sword/SubViewport/SwordPivot/SwordFlip/SwordRoll/SwordModel
+@onready var _lantern_model: Node3D = $Lantern/SubViewport/LanternModel
 @onready var _glow_light: OmniLight3D = $Lantern/SubViewport/GlowLight
 
 var energy := START_ENERGY
@@ -89,7 +95,11 @@ var lantern_used := false
 
 var _sword_base_position := Vector3.ZERO
 var _sword_base_rotation := Vector3.ZERO
+var _sword_model_base := Vector3.ZERO
+var _lantern_model_base := Vector3.ZERO
 var _glow_base_energy := 2.0
+var _idle_time := 0.0
+var _idle_blend := 0.0
 var _lantern_dragging := false
 var _lantern_home := Vector2.ZERO
 var _lantern_grab_offset := Vector2.ZERO
@@ -102,6 +112,8 @@ func _ready() -> void:
 	HandCursor.install()
 	_sword_base_position = _sword_pivot.position
 	_sword_base_rotation = _sword_pivot.rotation
+	_sword_model_base = _sword_model.position
+	_lantern_model_base = _lantern_model.position
 	_glow_base_energy = _glow_light.light_energy
 	_sword.gui_input.connect(_on_sword_gui_input)
 	_lantern.gui_input.connect(_on_lantern_gui_input)
@@ -115,6 +127,19 @@ func _ready() -> void:
 	_update_hud()
 	_layout_stage()
 	resized.connect(_layout_stage)
+
+
+## Bobs both weapons while the player is idling, easing the motion out during actions.
+func _process(delta: float) -> void:
+	var idling := phase == Phase.PLAYER and not busy and not _lantern_dragging
+	_idle_time += delta
+	_idle_blend = move_toward(_idle_blend, 1.0 if idling else 0.0,
+		delta / IDLE_BOB_FADE_SECONDS)
+	var wave := sin(_idle_time * TAU / IDLE_BOB_SECONDS) * _idle_blend
+	var sword_parent := _sword_model.get_parent() as Node3D
+	var sword_up := sword_parent.global_transform.basis.inverse() * Vector3.UP
+	_sword_model.position = _sword_model_base + sword_up * (wave * SWORD_IDLE_BOB)
+	_lantern_model.position = _lantern_model_base + Vector3.UP * (wave * LANTERN_IDLE_BOB)
 
 
 ## Keeps the slime and the full-screen claw overlay centred as the viewport changes shape.
