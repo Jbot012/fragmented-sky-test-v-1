@@ -27,6 +27,10 @@ const LANTERN_DROP_RADIUS := 180.0
 const LANTERN_GLOW_SECONDS := 0.35
 const LANTERN_RETURN_SECONDS := 0.28
 const LANTERN_HIGHLIGHT_TINT := Color(1.15, 1.15, 1.15, 1.0)
+const LANTERN_SPENT_TINT := Color(0.55, 0.55, 0.55, 0.45)
+const SWORD_DROP_RADIUS := 180.0
+const SWORD_RETURN_SECONDS := 0.18
+const SWORD_HIGHLIGHT_TINT := Color(1.15, 1.15, 1.15, 1.0)
 const IDLE_BOB_SECONDS := 2.4
 const IDLE_BOB_FADE_SECONDS := 0.25
 const SWORD_IDLE_BOB := 0.08
@@ -81,6 +85,9 @@ signal claw_marks_hidden
 @onready var _drop_zone: Control = %DropZone
 @onready var _drop_fill: Panel = %DropFill
 @onready var _drop_ring: Panel = %DropRing
+@onready var _sword_drop_zone: Control = %SwordDropZone
+@onready var _sword_drop_fill: Panel = %SwordDropFill
+@onready var _sword_drop_ring: Panel = %SwordDropRing
 @onready var _lantern_highlight: TextureRect = %LanternHighlight
 @onready var _sword_pivot: Node3D = $Sword/SubViewport/SwordPivot
 @onready var _sword_model: Node3D = $Sword/SubViewport/SwordPivot/SwordFlip/SwordRoll/SwordModel
@@ -99,7 +106,13 @@ var _sword_model_base := Vector3.ZERO
 var _lantern_model_base := Vector3.ZERO
 var _glow_base_energy := 2.0
 var _idle_time := 0.0
-var _idle_blend := 0.0
+var _sword_idle_blend := 0.0
+var _lantern_idle_blend := 0.0
+var _sword_dragging := false
+var _sword_home := Vector2.ZERO
+var _sword_grab_offset := Vector2.ZERO
+var _sword_drop_zone_hot := false
+var _sword_drop_zone_tween: Tween
 var _lantern_dragging := false
 var _lantern_home := Vector2.ZERO
 var _lantern_grab_offset := Vector2.ZERO
@@ -129,17 +142,19 @@ func _ready() -> void:
 	resized.connect(_layout_stage)
 
 
-## Bobs both weapons while the player is idling, easing the motion out during actions.
+## Bobs the weapons while the player idles; the spent lantern no longer hovers.
 func _process(delta: float) -> void:
-	var idling := phase == Phase.PLAYER and not busy and not _lantern_dragging
+	var idling := phase == Phase.PLAYER and not busy
 	_idle_time += delta
-	_idle_blend = move_toward(_idle_blend, 1.0 if idling else 0.0,
+	_sword_idle_blend = move_toward(_sword_idle_blend, 1.0 if idling else 0.0,
 		delta / IDLE_BOB_FADE_SECONDS)
-	var wave := sin(_idle_time * TAU / IDLE_BOB_SECONDS) * _idle_blend
+	_lantern_idle_blend = move_toward(_lantern_idle_blend,
+		1.0 if idling and not lantern_used else 0.0, delta / IDLE_BOB_FADE_SECONDS)
+	var wave := sin(_idle_time * TAU / IDLE_BOB_SECONDS)
 	var sword_parent := _sword_model.get_parent() as Node3D
 	var sword_up := sword_parent.global_transform.basis.inverse() * Vector3.UP
-	_sword_model.position = _sword_model_base + sword_up * (wave * SWORD_IDLE_BOB)
-	_lantern_model.position = _lantern_model_base + Vector3.UP * (wave * LANTERN_IDLE_BOB)
+	_sword_model.position = _sword_model_base + sword_up * (wave * SWORD_IDLE_BOB * _sword_idle_blend)
+	_lantern_model.position = _lantern_model_base + Vector3.UP * (wave * LANTERN_IDLE_BOB * _lantern_idle_blend)
 
 
 ## Keeps the slime and the full-screen claw overlay centred as the viewport changes shape.
@@ -160,6 +175,13 @@ func _layout_stage() -> void:
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		HandCursor.set_grabbing(event.pressed)
+	if _sword_dragging:
+		if event is InputEventMouseMotion:
+			_follow_sword_mouse()
+		elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT \
+				and not event.pressed:
+			_release_sword()
+		return
 	if not _lantern_dragging:
 		return
 	if event is InputEventMouseMotion:
@@ -174,6 +196,8 @@ func _notification(what: int) -> void:
 		HandCursor.set_grabbing(false)
 		if _lantern_dragging:
 			_cancel_lantern_drag()
+		if _sword_dragging:
+			_cancel_sword_drag()
 
 
 func _exit_tree() -> void:
@@ -182,6 +206,9 @@ func _exit_tree() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("ui_cancel"):
+		return
+	if _sword_dragging:
+		_cancel_sword_drag()
 		return
 	if _lantern_dragging:
 		_cancel_lantern_drag()
@@ -196,7 +223,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _on_sword_gui_input(event: InputEvent) -> void:
 	if _is_left_click(event):
-		_try_sword_swing()
+		_start_sword_drag()
 
 
 func _on_lantern_gui_input(event: InputEvent) -> void:
@@ -249,10 +276,10 @@ func _toggle_bag() -> void:
 	_bag_panel.visible = not _bag_panel.visible
 
 
-## Spends the lantern for the rest of the combat: it dims and stops taking clicks.
+## Spends the lantern for the rest of the combat: it greys out and stops taking clicks.
 func _spend_lantern() -> void:
 	lantern_used = true
-	_lantern.modulate = Color(1.0, 1.0, 1.0, 0.35)
+	_lantern.modulate = LANTERN_SPENT_TINT
 	_lantern.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
@@ -378,7 +405,8 @@ func _activate_lantern() -> void:
 	tween.parallel().tween_property(_glow_light, "light_energy", _glow_base_energy,
 		LANTERN_RETURN_SECONDS)
 	tween.parallel().tween_property(_lantern_highlight, "modulate:a", 0.0, LANTERN_RETURN_SECONDS)
-	tween.parallel().tween_property(_lantern, "modulate:a", 0.35, LANTERN_RETURN_SECONDS)
+	tween.parallel().tween_property(_lantern, "modulate", LANTERN_SPENT_TINT,
+		LANTERN_RETURN_SECONDS)
 	await tween.finished
 	_lantern.z_index = 0
 	_lantern_highlight.modulate.a = 0.0
@@ -404,6 +432,111 @@ func _return_lantern_home() -> void:
 	_lantern_highlight.modulate.a = 0.0
 	if phase == Phase.PLAYER:
 		busy = false
+
+
+# --- sword drag -----------------------------------------------------------------------------
+
+## Picks the sword up so it can be dragged onto the red strike marker.
+func _start_sword_drag() -> void:
+	if phase != Phase.PLAYER or busy or energy <= 0:
+		return
+	busy = true
+	_bag_panel.hide()
+	_sword_dragging = true
+	_sword_home = _sword.position
+	_sword_grab_offset = get_global_mouse_position() - _sword.global_position
+	_sword.z_index = 10
+	_sword.modulate = SWORD_HIGHLIGHT_TINT
+	_show_sword_drop_zone()
+	_update_sword_drop_zone_feedback()
+
+
+## Keeps the grabbed point of the sword under the mouse while the drag is active.
+func _follow_sword_mouse() -> void:
+	var half := _sword.size * 0.5
+	_sword.global_position = (get_global_mouse_position() - _sword_grab_offset) \
+		.clamp(-half, size - half)
+	_update_sword_drop_zone_feedback()
+
+
+## Drops the sword: a hit inside the red marker triggers the swing, otherwise it goes home.
+func _release_sword() -> void:
+	if not _sword_dragging:
+		return
+	_sword_dragging = false
+	var in_zone := _is_sword_over_drop_zone()
+	_set_sword_drop_zone_hot(false)
+	_hide_sword_drop_zone()
+	await _return_sword_home()
+	busy = false
+	if in_zone:
+		_try_sword_swing()
+
+
+func _cancel_sword_drag() -> void:
+	if not _sword_dragging:
+		return
+	_sword_dragging = false
+	_set_sword_drop_zone_hot(false)
+	_hide_sword_drop_zone()
+	await _return_sword_home()
+	busy = false
+
+
+func _sword_drop_zone_center() -> Vector2:
+	return _sword_drop_zone.position + _sword_drop_zone.size * 0.5
+
+
+func _is_sword_over_drop_zone() -> bool:
+	var sword_center := _sword.position + _sword.size * 0.5
+	return sword_center.distance_to(_sword_drop_zone_center()) <= SWORD_DROP_RADIUS
+
+
+func _show_sword_drop_zone() -> void:
+	_sword_drop_zone_hot = false
+	_sword_drop_fill.self_modulate = Color.WHITE
+	_sword_drop_ring.self_modulate = Color.WHITE
+	if _sword_drop_zone_tween != null and _sword_drop_zone_tween.is_valid():
+		_sword_drop_zone_tween.kill()
+	_sword_drop_zone.show()
+	_sword_drop_zone.modulate.a = 0.0
+	_sword_drop_zone_tween = create_tween()
+	_sword_drop_zone_tween.tween_property(_sword_drop_zone, "modulate:a", 1.0, 0.15)
+
+
+func _hide_sword_drop_zone() -> void:
+	if _sword_drop_zone_tween != null and _sword_drop_zone_tween.is_valid():
+		_sword_drop_zone_tween.kill()
+	if not _sword_drop_zone.visible:
+		return
+	_sword_drop_zone_tween = create_tween()
+	_sword_drop_zone_tween.tween_property(_sword_drop_zone, "modulate:a", 0.0, 0.12)
+	_sword_drop_zone_tween.tween_callback(_sword_drop_zone.hide)
+
+
+func _update_sword_drop_zone_feedback() -> void:
+	_set_sword_drop_zone_hot(_is_sword_over_drop_zone())
+
+
+func _set_sword_drop_zone_hot(hot: bool) -> void:
+	if _sword_drop_zone_hot == hot:
+		return
+	_sword_drop_zone_hot = hot
+	var tint := Color(1.4, 1.4, 1.4, 1.0) if hot else Color.WHITE
+	_sword_drop_fill.self_modulate = tint
+	_sword_drop_ring.self_modulate = tint
+
+
+## Tweens the sword back to its hotbar slot, clearing the drag highlight.
+func _return_sword_home() -> void:
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(_sword, "position", _sword_home, SWORD_RETURN_SECONDS) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(_sword, "modulate", Color.WHITE, SWORD_RETURN_SECONDS)
+	await tween.finished
+	_sword.z_index = 0
+	_sword.modulate = Color.WHITE
 
 
 func _on_return_to_menu_pressed() -> void:

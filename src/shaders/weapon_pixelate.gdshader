@@ -8,5 +8,6 @@ void fragment() {
 	vec2 viewport_pixels = 1.0 / TEXTURE_PIXEL_SIZE;
 	vec2 blocks = max(viewport_pixels / block_size, vec2(1.0));
 	vec2 block_uv = (floor(UV * blocks) + vec2(0.5)) / blocks;
-	COLOR = texture(TEXTURE, block_uv);
+	// Multiply by COLOR so the node's modulate (dimming, greying, highlight) still applies.
+	COLOR = texture(TEXTURE, block_uv) * COLOR;
 }

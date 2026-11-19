@@ -62,6 +62,25 @@ corner_radius_top_right = 180
 corner_radius_bottom_right = 180
 corner_radius_bottom_left = 180
 
+[sub_resource type="StyleBoxFlat" id="StyleBox_sword_drop_fill"]
+bg_color = Color(0.937255, 0.266667, 0.266667, 0.08)
+corner_radius_top_left = 180
+corner_radius_top_right = 180
+corner_radius_bottom_right = 180
+corner_radius_bottom_left = 180
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_sword_drop_ring"]
+draw_center = false
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.937255, 0.266667, 0.266667, 0.75)
+corner_radius_top_left = 180
+corner_radius_top_right = 180
+corner_radius_bottom_right = 180
+corner_radius_bottom_left = 180
+
 [sub_resource type="Environment" id="Environment_stage"]
 background_mode = 0
 ambient_light_source = 2
@@ -247,6 +266,46 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBox_drop_ring")
+
+[node name="SwordDropZone" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -84.0
+offset_top = -204.0
+offset_right = 276.0
+offset_bottom = 156.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="SwordDropFill" type="Panel" parent="SwordDropZone"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_sword_drop_fill")
+
+[node name="SwordDropRing" type="Panel" parent="SwordDropZone"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_sword_drop_ring")
 
 [node name="Lantern" type="SubViewportContainer" parent="."]
 layout_mode = 1
