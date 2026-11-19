@@ -5,6 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://dkonmc5lph0u8" path="res://assets/Energy_icon.png" id="3_energy"]
 [ext_resource type="PackedScene" uid="uid://0p1ykphc5dka" path="res://assets/blender/sword_test_uv_uwrap.glb" id="4_sword_model"]
 [ext_resource type="PackedScene" uid="uid://dubdoyldsbr0q" path="res://assets/blender/lantern_final.glb" id="5_lantern_model"]
+[ext_resource type="Shader" path="res://src/shaders/weapon_pixelate.gdshader" id="6_weapon_pixelate"]
 
 [sub_resource type="Gradient" id="Gradient_dark"]
 offsets = PackedFloat32Array(0, 0.45, 0.78, 1)
@@ -95,6 +96,10 @@ corner_radius_top_right = 3
 corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_weapon_pixelate"]
+shader = ExtResource("6_weapon_pixelate")
+shader_parameter/block_size = 3.0
+
 [node name="Combat" type="Control"]
 layout_mode = 3
 anchors_preset = 15
@@ -140,28 +145,30 @@ layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 96.0
-offset_top = -256.0
-offset_right = 376.0
-offset_bottom = 24.0
+offset_left = 36.0
+offset_top = -285.0
+offset_right = 436.0
+offset_bottom = 115.0
 grow_vertical = 0
 mouse_filter = 0
+texture_filter = 1
+material = SubResource("ShaderMaterial_weapon_pixelate")
 stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="Sword"]
 transparent_bg = true
 own_world_3d = true
-size = Vector2i(280, 280)
+size = Vector2i(400, 400)
 render_target_update_mode = 4
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="Sword/SubViewport"]
 environment = SubResource("Environment_stage")
 
 [node name="Camera3D" type="Camera3D" parent="Sword/SubViewport"]
-position = Vector3(0, 0.2, 4)
+position = Vector3(0, 0, 4)
 current = true
 projection = 1
-size = 1.8
+size = 2.57
 near = 0.05
 far = 20.0
 
@@ -255,6 +262,8 @@ offset_bottom = 180.0
 grow_horizontal = 0
 grow_vertical = 0
 mouse_filter = 0
+texture_filter = 1
+material = SubResource("ShaderMaterial_weapon_pixelate")
 stretch = true
 
 [node name="Glow" type="TextureRect" parent="Lantern"]
